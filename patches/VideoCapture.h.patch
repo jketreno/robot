@@ -1,0 +1,16 @@
+--- node_modules/opencv/src/VideoCaptureWrap.h	2015-10-01 10:03:58.187499381 -0700
++++ node_modules/opencv/src/VideoCaptureWrap.h	2015-10-01 10:02:59.363502292 -0700
+@@ -28,5 +28,13 @@ class VideoCaptureWrap: public node::Obj
+ 
+       //close the stream
+       static NAN_METHOD(Close);
++    
++    static void *_grabFrames(void *);
++    pthread_t frameThread;
++    sem_t frameAvailable;
++    sem_t frameRequested;
++    pthread_mutex_t frameMutex;
++    cv::Mat frameMat;
++    bool frameThreadInit;
+ };
+ 

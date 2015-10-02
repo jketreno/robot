@@ -1,0 +1,5 @@
+The patch files VideoCapture.{cc,h}.patch are applied to the node-opencv 
+project. That project, and these patches, are licensed under the 
+MIT-license, available here:
+
+https://github.com/peterbraden/node-opencv/blob/master/MIT-LICENSE.txt

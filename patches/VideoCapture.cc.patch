@@ -1,0 +1,101 @@
+--- node_modules/opencv/src/VideoCaptureWrap.cc	2015-10-01 10:03:58.187499381 -0700
++++ node_modules/opencv/src/VideoCaptureWrap.cc	2015-10-01 10:02:59.355502293 -0700
+@@ -1,3 +1,5 @@
++#include <pthread.h>
++#include <semaphore.h>
+ #include "VideoCaptureWrap.h"
+ #include "Matrix.h"
+ #include "OpenCV.h"
+@@ -64,6 +66,25 @@ NAN_METHOD(VideoCaptureWrap::New) {
+ 	NanReturnValue(args.This());
+ }
+ 
++void *VideoCaptureWrap::_grabFrames(void *This) {
++    VideoCaptureWrap *vcw = (VideoCaptureWrap *)This;
++    cv::Mat tmp;
++    int sem;
++    sem_wait(&vcw->frameRequested);
++    while (vcw->cap.isOpened()) {
++        if (vcw->cap.read(tmp)) {
++            pthread_mutex_lock(&vcw->frameMutex);
++            vcw->frameMat = tmp;
++            sem_getvalue(&vcw->frameAvailable, &sem);
++            if (sem == 0) {
++                sem_post(&vcw->frameAvailable);
++            }
++            pthread_mutex_unlock(&vcw->frameMutex);
++        }
++    }
++    return NULL;
++}
++
+ VideoCaptureWrap::VideoCaptureWrap(int device){
+ 
+ 	NanScope();
+@@ -72,6 +93,12 @@ VideoCaptureWrap::VideoCaptureWrap(int d
+ 	if(!cap.isOpened()){
+     NanThrowError("Camera could not be opened");
+ 	}
++
++    pthread_mutex_init(&this->frameMutex, NULL);
++    sem_init(&this->frameAvailable, 0, 0);
++    sem_init(&this->frameRequested, 0, 0);
++    pthread_t frameThread;
++    pthread_create(&frameThread, NULL, &VideoCaptureWrap::_grabFrames, (void *)this);
+ }
+ 
+ VideoCaptureWrap::VideoCaptureWrap(const std::string& filename){
+@@ -82,6 +109,11 @@ VideoCaptureWrap::VideoCaptureWrap(const
+     NanThrowError("Video file could not be opened (opencv reqs. non relative paths)");
+ 	}
+ 
++    pthread_mutex_init(&this->frameMutex, NULL);
++    sem_init(&this->frameAvailable, 0, 0);
++    sem_init(&this->frameRequested, 0, 0);
++    pthread_t frameThread;
++    pthread_create(&frameThread, NULL, &VideoCaptureWrap::_grabFrames, (void *)this);
+ }
+ 
+ NAN_METHOD(VideoCaptureWrap::SetWidth){
+@@ -160,7 +192,19 @@ class AsyncVCWorker : public NanAsyncWor
+       }
+       return;
+     }
+-    this->vc->cap.read(matrix->mat);
++      
++      /* By default the thread pulling frames will block
++       * waiting for a request to receive the first 
++       * frame. Otherwise it will spin on an error waiting
++       * for things to initialize... */
++      sem_trywait(&this->vc->frameRequested);
++      sem_post(&this->vc->frameRequested);
++      
++      /* Wait until there is a frame available. */
++      sem_wait(&this->vc->frameAvailable);
++      pthread_mutex_lock(&this->vc->frameMutex);
++      matrix->mat = this->vc->frameMat;
++      pthread_mutex_unlock(&this->vc->frameMutex);
+   }
+ 
+   // Executed when the async work is complete
+@@ -217,8 +261,18 @@ NAN_METHOD(VideoCaptureWrap::ReadSync) {
+ 
+   Local<Object> im_to_return= NanNew(Matrix::constructor)->GetFunction()->NewInstance();
+   Matrix *img = ObjectWrap::Unwrap<Matrix>(im_to_return);
+-
+-  v->cap.read(img->mat);
++    /* By default the thread pulling frames will block
++     * waiting for a request to receive the first 
++     * frame. Otherwise it will spin on an error waiting
++     * for things to initialize... */
++    sem_trywait(&v->frameRequested);
++    sem_post(&v->frameRequested);
++      
++    /* Wait until there is a frame available. */
++    sem_wait(&v->frameAvailable);
++    pthread_mutex_lock(&v->frameMutex);
++    img->mat = v->frameMat;
++    pthread_mutex_unlock(&v->frameMutex);
+ 
+ 	NanReturnValue(im_to_return);
+ }
