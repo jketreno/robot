@@ -38,10 +38,31 @@ function detectFacesAndTrack(err, image) {
                 largest = face;
             }
         });
-    
-        now = Date.now();
+        
+        updatePlan({face: largest});
+        cam.read(detectFacesAndTrack);
+    });
+}
 
-        if (largest && robot && robot.ready) {
+function requestSpeed(left, right) {
+   /* Validate requested speeds make sense given current sensor wall and
+    * cliff values, adjust accordingly */
+
+   /* Send the new speed values to the robot */
+   robot.drive({left: left, right: right});
+}
+
+function updatePlan(update) {
+    if ('face' in update) { /* face update */
+        var now = Date.now();
+        if (!update.face) {
+            requestSpeed(0, 0); /* TODO: Switch into SEEK mode */
+            return;
+        }
+
+        /* calculate how far 'face' is from center of image and determeine 
+         * optimal motor speeds to move robot in direction to center face */
+        if (robot && robot.ready) {
             var deltaAngle = FOV_x * ((largest.x + largest.width / 2) / (320 / 2) - 1),
                 framePos = (largest.y + largest.height / 2) / ((240 - largest.height) / 2) - 1;
             if (now - lastCommand > 250 && robot) {
@@ -67,8 +88,7 @@ function detectFacesAndTrack(err, image) {
 
                 moving.left = Math.round(moving.left * speedMultiplier);
                 moving.right = Math.round(moving.right * speedMultiplier);
-                
-                robot.drive(moving);
+                requestSpeed(moving.left, moving.right);
                 lastCommand = now;
             }
             
@@ -87,21 +107,24 @@ function detectFacesAndTrack(err, image) {
                 }
             } 
         }
+    } else if ('sensors' in update) {
+    }
 
-        cam.read(detectFacesAndTrack);
-    });
 }
 
-/* The documentation states a baud rate of 57600, 
- * however using a logic analyzer, I found that 
- * communication was occurring at 115200 baud */
-var robot = new ir.Robot('/dev/ttyUSB0', {
-    baudrate: 115200
+/* The documentation states a baud rate of 57600, however using a logic 
+ * analyzer, I found that communication was occurring at 115200 baud */
+robot = new ir.Robot('/dev/ttyUSB0', {
+   baudrate: 115200
 });
+
 robot.on('ready', function () {
     console.log('READY');
     robot.ready = true;
     lastCommand = Date.now();
     // Once the robot is ready, start face detection tracking
     cam.read(detectFacesAndTrack);
+ });
+robot.on('sensordata', function() {
+    updatePlan({sensors: robot.getSensorData()});
 });
