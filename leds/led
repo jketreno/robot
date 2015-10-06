@@ -1,0 +1,20 @@
+#!/bin/bash
+function setGPIO {
+	pin=$1
+	value=0
+	case "$2" in
+	"on"|"ON"|"On"|"1") value=0
+		;;
+	"off"|"OFF"|"Off"|"0"|*) value=1
+		;;
+	esac
+	[ ! -d /sys/class/gpio/gpio${pin} ] && {
+		echo "${pin}" > /sys/class/gpio/export
+		echo "out" > /sys/class/gpio/gpio${pin}/direction
+	}
+	echo "${value}" > /sys/class/gpio/gpio${pin}/value
+}
+
+setGPIO 338 $1
+setGPIO 339 $2
+setGPIO 340 $3

@@ -1,0 +1,60 @@
+#!/bin/bash
+dir=$(dirname $0)
+function blinkchar {
+	case $1 in
+	[0-9])	# Each pulse in the character has a 0.25s delay between 0.1s pulses
+		i=$1
+		(( i==0 )) && i=10
+		while ((i>0)); do
+			${dir}/led 0 1 1
+			sleep 0.1
+			${dir}/led 0 0 0
+			sleep 0.5
+			i=$((i-1))
+		done
+		# There is a 0.5s delay between characters
+		sleep 1.0
+		;;
+	".")	# Dot has a 1s blank delay, then a 1s yellow light, then another 0.5s delay
+		${dir}/led 0 0 0
+		sleep 0.75
+		${dir}/led 1 1 0
+		sleep 1
+		${dir}/led 0 0 0
+		sleep 0.5
+		;;
+	esac
+}
+
+while true; do
+	button=$(${dir}/button)
+	if (( $button == 1 )); then
+		addr=$(ifconfig p2p1 | sed -ne "s,^.*inet addr:\([^ ]*\).*\$,\1,p")
+		if [[ "$addr" == "" ]]; then
+			${dir}/led 1 0 0
+			sleep 5
+			${dir}/led 0 0 0
+			sleep 5
+			continue
+		fi
+		# 3s delay after jumper is put on lure, then rapid blink yellow
+		sleep 3
+		for j in 0 1 2 3 4; do
+			${dir}/led 1 1 0
+			sleep 0.1
+			${dir}/led 0 0 0
+			sleep 0.1
+		done
+		sleep 1
+		for (( c=0; c<${#addr}; c++)); do
+			button=$(${dir}/button)
+			if (( $button == 0 )); then
+				break
+			fi
+			blinkchar ${addr:$c:1}
+		done
+		${dir}/led 0 0 0
+	else
+		sleep 5
+	fi
+done

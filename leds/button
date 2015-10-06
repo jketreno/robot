@@ -1,0 +1,11 @@
+#!/bin/bash
+function getGPIO {
+	pin=$1
+	[ ! -d /sys/class/gpio/gpio${pin} ] && {
+		echo "${pin}" > /sys/class/gpio/export
+		echo "in" > /sys/class/gpio/gpio${pin}/direction
+	}
+	cat /sys/class/gpio/gpio${pin}/value
+}
+
+getGPIO 483
