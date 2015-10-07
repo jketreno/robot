@@ -1,0 +1,5 @@
+#!/bin/sh -e
+cd /var/www/facetrack
+leds/blinkip &
+nodejs capture.js &
+exit 0
