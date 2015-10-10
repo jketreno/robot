@@ -7,8 +7,8 @@
  *
 */
 var cv = require('opencv'),
+    io = require('socket.io')({path: "/roomba/facetrack/socket.io"}).listen(6789),
     ir = require('irobot'),
-    fs = require('fs'),
     mraa = require('mraa');
 
 var cam = new cv.VideoCapture(0);
@@ -22,6 +22,8 @@ try {
 } catch (err) {
 	console.log('Unable to connect to GPIO. Do you have permissions?');
 }
+
+var sockets = [];
 
 var FOV = 68.5, /* Microsoft HD LiveCam is 68.5deg diagonal FOV */
     FOV_x = FOV * Math.cos (Math.atan2(240, 320)) * 0.5; /* FOV along width */
@@ -49,6 +51,12 @@ function detectFacesAndTrack(err, image) {
         });
         
         updatePlan({face: largest});
+        
+        io.emit('frame', {
+            faces: faces,
+            image: im.toBuffer({ext:'.png'})
+        });
+
         cam.read(detectFacesAndTrack);
     });
 }
@@ -144,5 +152,32 @@ robot.on('ready', function () {
     cam.read(detectFacesAndTrack);
  });
 robot.on('sensordata', function() {
-    updatePlan({sensors: robot.getSensorData()});
+    var data = robot.getSensorData();
+    updatePlan({sensors: data});
+    if (Object.getOwnPropertyNames(data).length > 0) {
+        io.emit('sensordata', robot.getSensorData());
+    }
+});
+
+io.on('connection', function(_socket) {
+    sockets.push(_socket);
+    console.log('CONNECT');
+
+    _socket.on('disconnect', function() {
+        console.log('DISCONNECT');
+        /* Remove this socket from the list of active sockets */
+        sockets = sockets.filter(function(socket) {
+            return (_socket != socket);
+        });
+        console.log(sockets.length + ' connections remain.');
+    });
+    
+    /* If we have a robot connection, send the sensor data
+     * to the new socket */
+    if (robot) {
+       var data = robot.getSensorData();
+       if (Object.getOwnPropertyNames(data).length > 0) {
+           _socket.emit('sensordata', robot.getSensorData());
+       }
+    }
 });
