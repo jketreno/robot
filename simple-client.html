@@ -1,0 +1,57 @@
+<html>
+
+<head>
+    <title>Streaming Client</title>
+    <script src="socket.io/socket.io.js"></script>
+    <style>
+        #frames {
+            width: 320px;
+            height: 240px;
+        }
+        </style>
+    </head>
+<body>
+    <img id='frames'>
+    <div id='fps'></div>
+</body>
+<script>
+    var updateFPS = (function () {
+        var fps = null,
+            fpsRA = [0, 0, 0, 0, 0],
+            fpsTotal = 0,
+            fpsIndex = 0,
+            fpsLast = Date.now();
+        
+        return function () {
+            var now = Date.now();
+            fpsTotal -= fpsRA[fpsIndex];
+            fpsRA[fpsIndex] = (now - fpsLast) / fpsRA.length;
+            fpsTotal += fpsRA[fpsIndex++];
+            fpsIndex %= fpsRA.length;
+            fpsLast = now;
+            if (fps == null) {
+                fps = document.getElementById('fps');
+            }
+            fps.textContent = (Math.round(10000 / fpsTotal) / 10) + 'f/s (' + 
+                Math.round(fpsTotal) + 'ms/frame)';
+        }
+    })();
+    
+    document.addEventListener('DOMContentLoaded', function () {
+        frames = document.getElementById('frames');
+        var nodeServer = document.location.href.replace(/^(https?:\/\/[^\/]+).*$/, '$1'),
+            socket = io.connect(nodeServer, {
+                'path': '/facetrack/socket.io'
+            });
+
+        socket.on('frame', function (data) {
+            var fr = new FileReader();
+            fr.onload = function (e) {
+                frames.src = e.target.result.replace(
+                    /data:;/, 'data:image/png;');
+            };
+            fr.readAsDataURL(new Blob([(new Uint8Array(data.image)).buffer]));
+            updateFPS();
+        });
+    });
+    </script>
