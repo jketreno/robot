@@ -8,11 +8,20 @@
 */
 var cv = require('opencv'),
     ir = require('irobot'),
-    fs = require('fs');
+    fs = require('fs'),
+    mraa = require('mraa');
 
 var cam = new cv.VideoCapture(0);
 cam.setWidth(320);
 cam.setHeight(240);
+
+var led = null;
+try {
+	led = new mraa.Gpio(23);
+	led.dir(mraa.DIR_OUT);
+} catch (err) {
+	console.log('Unable to connect to GPIO. Do you have permissions?');
+}
 
 var FOV = 68.5, /* Microsoft HD LiveCam is 68.5deg diagonal FOV */
     FOV_x = FOV * Math.cos (Math.atan2(240, 320)) * 0.5; /* FOV along width */
@@ -44,6 +53,12 @@ function detectFacesAndTrack(err, image) {
     });
 }
 
+function requestLED(state) {
+    if (led) {
+        led.write(state ? 0 : 1);
+    }
+}
+
 function requestSpeed(left, right) {
    /* Validate requested speeds make sense given current sensor wall and
     * cliff values, adjust accordingly */
@@ -57,8 +72,11 @@ function updatePlan(update) {
         var now = Date.now();
         if (!update.face) {
             requestSpeed(0, 0); /* TODO: Switch into SEEK mode */
+            requestLED(0); /* Turn OFF 'face detected' LED */
             return;
         }
+
+        requestLED(1); /* Turn ON 'face detected' LED */
 
         /* calculate how far 'face' is from center of image and determeine 
          * optimal motor speeds to move robot in direction to center face */
