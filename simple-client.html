@@ -28,7 +28,7 @@
             fpsTotal = 0,
             fpsIndex = 0,
             fpsLast = Date.now();
-        
+
         return function () {
             var now = Date.now();
             fpsTotal -= fpsRA[fpsIndex];
@@ -39,11 +39,11 @@
             if (fps == null) {
                 fps = document.getElementById('fps');
             }
-            fps.textContent = (Math.round(10000 / fpsTotal) / 10) + 'f/s (' + 
+            fps.textContent = (Math.round(10000 / fpsTotal) / 10) + 'f/s (' +
                 Math.round(fpsTotal) + 'ms/frame)';
         }
     })();
-    
+
     document.addEventListener('DOMContentLoaded', function () {
         frames = document.getElementById('frames');
         var nodeServer = document.location.href.replace(/^(https?:\/\/[^\/]+).*$/, '$1'),
