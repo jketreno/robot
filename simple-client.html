@@ -8,8 +8,15 @@
             width: 320px;
             height: 240px;
         }
-        </style>
-    </head>
+        .frame {
+            position: absolute;
+            border: 1px solid red;
+            border-radius: 0.5rem;
+            z-index: 1;
+        }
+    </style>
+</head>
+
 <body>
     <img id='frames'>
     <div id='fps'></div>
@@ -51,7 +58,23 @@
                     /data:;/, 'data:image/png;');
             };
             fr.readAsDataURL(new Blob([(new Uint8Array(data.image)).buffer]));
+
+            /* Remove any current faces fraom the scene */
+            Array.prototype.forEach.call(document.querySelectorAll('.face'), function (face) {
+                face.parentElement.removeChild(face);
+            });
+
+            /* Add a new face element for each received face */
+            faces.forEach(function (face) {
+                var div = document.createElement('div');
+                div.classList.add('face');
+                div.style.left = face.left + 'px';
+                div.style.top = face.top + 'px';
+                div.style.width = face.width + 'px';
+                div.style.height = face.height + 'px';
+                document.body.appendChild(div);
+            });
             updateFPS();
         });
     });
-    </script>
+</script>
