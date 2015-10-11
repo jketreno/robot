@@ -9,6 +9,7 @@
 var cv = require('opencv'),
     io = require('socket.io')({path: "/roomba/facetrack/socket.io"}).listen(6789),
     ir = require('irobot'),
+    fs = require('fs'),
     mraa = require('mraa');
 
 var cam = new cv.VideoCapture(0);
@@ -68,6 +69,10 @@ function requestLED(state) {
 }
 
 function requestSpeed(left, right) {
+    if (!robot) {
+        return;
+    }
+    
    /* Validate requested speeds make sense given current sensor wall and
     * cliff values, adjust accordingly */
 
@@ -138,26 +143,35 @@ function updatePlan(update) {
 
 }
 
-/* The documentation states a baud rate of 57600, however using a logic 
- * analyzer, I found that communication was occurring at 115200 baud */
-robot = new ir.Robot('/dev/ttyUSB0', {
-   baudrate: 115200
-});
+var robot;
+try {
+    var stats = fs.statSync('/dev/ttyUSB0');
+    /* The documentation states a baud rate of 57600, however using a logic 
+     * analyzer, I found that communication was occurring at 115200 baud */
+    robot = new ir.Robot('/dev/ttyUSB0', {
+        baudrate: 115200
+    });
 
-robot.on('ready', function () {
-    console.log('READY');
-    robot.ready = true;
-    lastCommand = Date.now();
-    // Once the robot is ready, start face detection tracking
+    robot.on('ready', function () {
+        console.log('READY');
+        robot.ready = true;
+        lastCommand = Date.now();
+        // Once the robot is ready, start face detection tracking
+        cam.read(detectFacesAndTrack);
+     });
+    
+    robot.on('sensordata', function() {
+        var data = robot.getSensorData();
+        updatePlan({sensors: data});
+        if (Object.getOwnPropertyNames(data).length > 0) {
+            io.emit('sensordata', robot.getSensorData());
+        }
+    });
+} catch (err) {
+    console.log('No robot found at /dev/ttyUSB0. Continuing without robot.');
+    robot = null;
     cam.read(detectFacesAndTrack);
- });
-robot.on('sensordata', function() {
-    var data = robot.getSensorData();
-    updatePlan({sensors: data});
-    if (Object.getOwnPropertyNames(data).length > 0) {
-        io.emit('sensordata', robot.getSensorData());
-    }
-});
+}
 
 io.on('connection', function(_socket) {
     sockets.push(_socket);
