@@ -54,7 +54,7 @@ function detectFacesAndTrack(err, image) {
         
         io.emit('frame', {
             faces: faces,
-            image: im.toBuffer({ext:'.png'})
+            image: image.toBuffer({ext:'.png'})
         });
 
         cam.read(detectFacesAndTrack);
