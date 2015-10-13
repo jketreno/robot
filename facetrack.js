@@ -43,22 +43,32 @@ function detectFacesAndTrack(err, image) {
         if (err) {
             throw err;
         }
-        var largest = null;
+        var largest = -1;
         
-        faces.forEach(function (face) {
-            face.size = face.width * face.height;
-            if (!largest || face.size > largest.size) {
-                largest = face;
+        faces.forEach(function (face, i) {
+            /* Remap x and y properties to left and top */
+            face.left = face.x;
+            delete face.x;
+            face.top = face.y;
+            delete face.y;
+            faces[i].size = face.width * face.height;
+
+            if (largest == -1 || faces[i].size > faces[largest].size) {
+                largest = i;
             }
         });
         
-        updatePlan({face: largest});
+        updatePlan({face: largest == -1 ? null : faces[largest]});
+
+        if (largest != -1) {
+            faces[largest].largest = true;
+        }
         
         io.emit('frame', {
-            faces: faces,
-            image: image.toBuffer({ext:'.png'})
+            image: image.toBuffer(),
+            faces: faces
         });
-
+        
         cam.read(detectFacesAndTrack);
     });
 }

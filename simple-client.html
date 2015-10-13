@@ -58,14 +58,18 @@
                 'path': path + '/socket.io'
             });
 
-        socket.on('frame', function (data) {
+        socket.on('frame', function (frame) {
+            var image = frame.image,
+                faces = frame.faces;
+            
             var fr = new FileReader();
             fr.onload = function (e) {
                 frames.src = e.target.result.replace(
                     /data:;/, 'data:image/png;');
             };
-            fr.readAsDataURL(new Blob([(new Uint8Array(data.image)).buffer]));
-
+            fr.readAsDataURL(new Blob([(new Uint8Array(image)).buffer]));
+            updateFPS();
+ 
             /* Remove any current faces fraom the scene */
             Array.prototype.forEach.call(document.querySelectorAll('.face'), function (face) {
                 face.parentElement.removeChild(face);
@@ -75,13 +79,16 @@
             faces.forEach(function (face) {
                 var div = document.createElement('div');
                 div.classList.add('face');
-                div.style.left = face.left + 'px';
-                div.style.top = face.top + 'px';
+                div.style.left = (frames.offsetLeft + frames.offsetWidth - 
+                                  (face.left + face.width)) + 'px';
+                div.style.top = (face.top + frames.offsetTop) + 'px';
                 div.style.width = face.width + 'px';
                 div.style.height = face.height + 'px';
+                if (face.largest) {
+                    div.style.borderWidth = '3px';
+                }
                 document.body.appendChild(div);
             });
-            updateFPS();
         });
     });
 </script>
