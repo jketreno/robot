@@ -45,10 +45,17 @@
     })();
 
     document.addEventListener('DOMContentLoaded', function () {
+        if (typeof io === 'undefined') {
+            document.body.textContent = 'Node.js server not running.';
+            return;
+        }
+        
         frames = document.getElementById('frames');
+        
         var nodeServer = document.location.href.replace(/^(https?:\/\/[^\/]+).*$/, '$1'),
+            path = document.location.pathname.replace(/\/[^\/]+$/, ''),
             socket = io.connect(nodeServer, {
-                'path': '/facetrack/socket.io'
+                'path': path + '/socket.io'
             });
 
         socket.on('frame', function (data) {

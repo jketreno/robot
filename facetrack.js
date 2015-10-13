@@ -7,11 +7,12 @@
  *
 */
 var cv = require('opencv'),
-    io = require('socket.io')({path: "/roomba/facetrack/socket.io"}).listen(6789),
+    io = require('socket.io')({
+        path: '/' + require('path').basename(__dirname) + '/socket.io'
+    }).listen(6789),
     ir = require('irobot'),
     fs = require('fs'),
     mraa = require('mraa');
-
 var cam = new cv.VideoCapture(0);
 cam.setWidth(320);
 cam.setHeight(240);
