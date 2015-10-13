@@ -80,7 +80,7 @@ function requestLED(state) {
 }
 
 function requestSpeed(left, right) {
-    if (!robot) {
+    if (!robot || !robot.ready) {
         return;
     }
     
