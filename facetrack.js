@@ -88,70 +88,56 @@ function requestSpeed(left, right) {
     * cliff values, adjust accordingly */
 
    /* Send the new speed values to the robot */
-   robot.drive({left: left, right: right});
+   robot.drive({left: Math.round(left), right: Math.round(right)});
 }
 
 function updatePlan(update) {
     if ('face' in update) { /* face update */
         var now = Date.now();
         if (!update.face) {
-            requestSpeed(0, 0); /* TODO: Switch into SEEK mode */
-            requestLED(0); /* Turn OFF 'face detected' LED */
+            if (++noFace == 5) {
+                console.log('Faces for ' + noFace + ' frames. Stopping robot.');
+                requestSpeed(0, 0); /* TODO: Switch into SEEK mode */
+                requestLED(0); /* Turn OFF 'face detected' LED */
+            }
             return;
         }
 
+        /* We detected a face, so keep moving for at least 5 sequential frames... */
+        noFace = 0;
+        
         requestLED(1); /* Turn ON 'face detected' LED */
-
+ 
         /* calculate how far 'face' is from center of image and determeine 
          * optimal motor speeds to move robot in direction to center face */
-        if (robot && robot.ready) {
-            var deltaAngle = FOV_x * ((largest.x + largest.width / 2) / (320 / 2) - 1),
-                framePos = (largest.y + largest.height / 2) / ((240 - largest.height) / 2) - 1;
-            if (now - lastCommand > 250 && robot) {
-                var rotateSpeed = Math.pow(deltaAngle / FOV_x, 2);
-                if (deltaAngle < 0) {
-                    console.log('Rotate left ' + Math.round(deltaAngle * 10) / 10 + 'deg');
-                    moving.left = 100 * rotateSpeed;
-                    moving.right = -100 * rotateSpeed;
-                } else {
-                    console.log('Rotate right ' + Math.round(deltaAngle * 10) / 10 + 'deg');
-                    moving.left = -100 * rotateSpeed;
-                    moving.right = 100 * rotateSpeed;
-                }
-                console.log(framePos);
-                if (Math.abs(framePos) < 1 && Math.abs(framePos) > 0.15) {
-                    var direction = framePos < 0 ? -1 : +1;
-                    moving.left += direction * 40;
-                    moving.right += direction * 40;
-                    console.log('Drive ' + (direction < 0 ? 'backward' : 'forward'));
-                } else {
-                    console.log('Just rotate at ' + Math.round(100 * rotateSpeed));
-                }
-
-                moving.left = Math.round(moving.left * speedMultiplier);
-                moving.right = Math.round(moving.right * speedMultiplier);
-                requestSpeed(moving.left, moving.right);
-                lastCommand = now;
-            }
-            
-            /* We detected a face, so keep moving for at least 5 sequential frames... */
-            noFace = 0;
+        var face = update.face;
+        var deltaAngle = FOV_x * ((face.left + face.width / 2) / (320 / 2) - 1),
+            framePos = (face.top + face.height / 2) / ((240 - face.height) / 2) - 1,
+            rotateSpeed = Math.pow(deltaAngle / FOV_x, 2);
+        var left = 0, right = 0;
+        
+        if (deltaAngle < 0) {
+            console.log('Rotate left ' + Math.round(deltaAngle * 10) / 10 + 'deg');
+            left = 100 * rotateSpeed;
+            right = -100 * rotateSpeed;
         } else {
-            if ((moving.left || moving.right) && noFace++ > 3) {
-                noFace = 0;
-                moving.left = moving.right = null;
-                console.log('Faces for ' + noFace + ' frames. Stopping robot.');
-                if (robot && robot.ready) {
-                    robot.drive({
-                        left: 0,
-                        right: 0
-                    });
-                }
-            } 
+            console.log('Rotate right ' + Math.round(deltaAngle * 10) / 10 + 'deg');
+            left = -100 * rotateSpeed;
+            right = 100 * rotateSpeed;
         }
+
+        if (Math.abs(framePos) < 1 && Math.abs(framePos) > 0.15) {
+            var direction = framePos < 0 ? -1 : +1;
+            left += direction * 40;
+            right += direction * 40;
+            console.log('Drive ' + (direction < 0 ? 'backward' : 'forward'));
+        } 
+
+        requestSpeed(left * speedMultiplier, right * speedMultiplier);
+
+        noFace = 0;
     } else if ('sensors' in update) {
     }
-
 }
 
 var robot;
