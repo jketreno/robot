@@ -11,7 +11,7 @@ apt-get install libopencv-dev libopencv-{core,calib3d,contrib,legacy}2.4
 Once you have OpenCV installed, you can install the depenceny Node.js modules:
 ```
 npm install --save opencv
-npm install --save node-irobot
+npm install --save irobot
 npm install --save socket.io
 npm install --save mraa
 ```
