@@ -23,73 +23,73 @@
     <div id='fps'></div>
 </body>
 <script>
-    var updateFPS = (function () {
-        var fps = null,
-            fpsRA = [0, 0, 0, 0, 0],
-            fpsTotal = 0,
-            fpsIndex = 0,
-            fpsLast = Date.now();
+var updateFPS = (function () {
+    var fps = null,
+        fpsRA = [0, 0, 0, 0, 0],
+        fpsTotal = 0,
+        fpsIndex = 0,
+        fpsLast = Date.now();
 
-        return function () {
-            var now = Date.now();
-            fpsTotal -= fpsRA[fpsIndex];
-            fpsRA[fpsIndex] = (now - fpsLast) / fpsRA.length;
-            fpsTotal += fpsRA[fpsIndex++];
-            fpsIndex %= fpsRA.length;
-            fpsLast = now;
-            if (fps == null) {
-                fps = document.getElementById('fps');
+    return function () {
+        var now = Date.now();
+        fpsTotal -= fpsRA[fpsIndex];
+        fpsRA[fpsIndex] = (now - fpsLast) / fpsRA.length;
+        fpsTotal += fpsRA[fpsIndex++];
+        fpsIndex %= fpsRA.length;
+        fpsLast = now;
+        if (fps == null) {
+            fps = document.getElementById('fps');
+        }
+        fps.textContent = (Math.round(10000 / fpsTotal) / 10) + 'f/s (' +
+            Math.round(fpsTotal) + 'ms/frame)';
+    }
+})();
+
+document.addEventListener('DOMContentLoaded', function () {
+    if (typeof io === 'undefined') {
+        document.body.textContent = 'Node.js server not running.';
+        return;
+    }
+
+    frames = document.getElementById('frames');
+
+    var nodeServer = document.location.href.replace(/^(https?:\/\/[^\/]+).*$/, '$1'),
+        path = document.location.pathname.replace(/\/[^\/]+$/, ''),
+        socket = io.connect(nodeServer, {
+            'path': path + '/socket.io'
+        });
+
+    socket.on('frame', function (frame) {
+        var image = frame.image,
+            faces = frame.faces;
+
+        var fr = new FileReader();
+        fr.onload = function (e) {
+            frames.src = e.target.result.replace(
+                /data:;/, 'data:image/png;');
+        };
+        fr.readAsDataURL(new Blob([(new Uint8Array(image)).buffer]));
+        updateFPS();
+
+        /* Remove any current faces fraom the scene */
+        Array.prototype.forEach.call(document.querySelectorAll('.face'), function (face) {
+            face.parentElement.removeChild(face);
+        });
+
+        /* Add a new face element for each received face */
+        faces.forEach(function (face) {
+            var div = document.createElement('div');
+            div.classList.add('face');
+            div.style.left = (frames.offsetLeft + frames.offsetWidth - 
+                              (face.left + face.width)) + 'px';
+            div.style.top = (face.top + frames.offsetTop) + 'px';
+            div.style.width = face.width + 'px';
+            div.style.height = face.height + 'px';
+            if (face.largest) {
+                div.style.borderWidth = '3px';
             }
-            fps.textContent = (Math.round(10000 / fpsTotal) / 10) + 'f/s (' +
-                Math.round(fpsTotal) + 'ms/frame)';
-        }
-    })();
-
-    document.addEventListener('DOMContentLoaded', function () {
-        if (typeof io === 'undefined') {
-            document.body.textContent = 'Node.js server not running.';
-            return;
-        }
-        
-        frames = document.getElementById('frames');
-        
-        var nodeServer = document.location.href.replace(/^(https?:\/\/[^\/]+).*$/, '$1'),
-            path = document.location.pathname.replace(/\/[^\/]+$/, ''),
-            socket = io.connect(nodeServer, {
-                'path': path + '/socket.io'
-            });
-
-        socket.on('frame', function (frame) {
-            var image = frame.image,
-                faces = frame.faces;
-            
-            var fr = new FileReader();
-            fr.onload = function (e) {
-                frames.src = e.target.result.replace(
-                    /data:;/, 'data:image/png;');
-            };
-            fr.readAsDataURL(new Blob([(new Uint8Array(image)).buffer]));
-            updateFPS();
- 
-            /* Remove any current faces fraom the scene */
-            Array.prototype.forEach.call(document.querySelectorAll('.face'), function (face) {
-                face.parentElement.removeChild(face);
-            });
-
-            /* Add a new face element for each received face */
-            faces.forEach(function (face) {
-                var div = document.createElement('div');
-                div.classList.add('face');
-                div.style.left = (frames.offsetLeft + frames.offsetWidth - 
-                                  (face.left + face.width)) + 'px';
-                div.style.top = (face.top + frames.offsetTop) + 'px';
-                div.style.width = face.width + 'px';
-                div.style.height = face.height + 'px';
-                if (face.largest) {
-                    div.style.borderWidth = '3px';
-                }
-                document.body.appendChild(div);
-            });
+            document.body.appendChild(div);
         });
     });
+});
 </script>
