@@ -1,6 +1,6 @@
-# Declare an upstream proxy named 'facetrack' which connects to
+# Declare an upstream proxy named 'robot' which connects to
 # our Node.js server
-upstream facetrack {
+upstream robot {
 	server 127.0.0.1:6789;
 }
 
@@ -8,22 +8,22 @@ server {
 	listen 80;
 	access_log /var/log/nginx/default.log;
 	root /var/www;
-	# The following sets the path /facetrack/ up so that if a
+	# The following sets the path /robot/ up so that if a
 	# file is requested, nginx first attempts the URI itself. If
 	# it exists, the file is served. If the requested URI does not
 	# exist, it postfixes the name with /index.html to see if there
 	# is a default web page to server. If neither of those match,
 	# nginx passes the connection to the location item named
-	# 'facetrack_nodejs'
-	location /facetrack/ {
-		try_files $uri $uri/index.html @facetrack_nodejs;
+	# 'robot_nodejs'
+	location /robot/ {
+		try_files $uri $uri/index.html @robot_nodejs;
 	}
 	
-	# This section declares the location 'facetrack_nodejs'
+	# This section declares the location 'robot_nodejs'
 	# which declares that any request matching this location
-	# is passed to the upstream proxy named 'facetrack'
-	location @facetrack_nodejs {
-		proxy_pass http://facetrack;
+	# is passed to the upstream proxy named 'robot'
+	location @robot_nodejs {
+		proxy_pass http://robot;
 		proxy_http_version 1.1;
 		proxy_set_header Upgrade $http_upgrade;
 		proxy_set_header Connection "upgrade";

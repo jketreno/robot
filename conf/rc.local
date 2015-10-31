@@ -1,5 +1,5 @@
 #!/bin/sh -e
-cd /var/www/facetrack
+cd /var/www/robot
 leds/blinkip &
 nodejs facetrack.js &
 exit 0
