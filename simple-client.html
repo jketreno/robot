@@ -5,6 +5,7 @@
     <script src="socket.io/socket.io.js"></script>
     <style>
         #frames {
+            position: relative;
             transform: scaleX(-1);
             width: 320px;
             height: 240px;
@@ -61,6 +62,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     socket.on('frame', function (frame) {
         var image = frame.image,
+            size = frame.size,
             faces = frame.faces;
 
         var fr = new FileReader();
@@ -80,9 +82,14 @@ document.addEventListener('DOMContentLoaded', function () {
         faces.forEach(function (face) {
             var div = document.createElement('div');
             div.classList.add('face');
+            face.x *= frames.offsetWidth / size.width;
+            face.y *= frames.offsetHeight / size.height;
+            face.width *= frames.offsetWidth / size.width;
+            face.height *= frames.offsetHeight / size.height;
+            
             div.style.left = (frames.offsetLeft + frames.offsetWidth - 
-                              (face.left + face.width)) + 'px';
-            div.style.top = (face.top + frames.offsetTop) + 'px';
+                              (face.x + face.width)) + 'px';
+            div.style.top = (face.y + frames.offsetTop) + 'px';
             div.style.width = face.width + 'px';
             div.style.height = face.height + 'px';
             if (face.largest) {
