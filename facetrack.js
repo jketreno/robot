@@ -179,7 +179,7 @@ io.on('connection', function(_socket) {
     
     /* If we have a robot connection, send the sensor data
      * to the new socket */
-    if (robot) {
+    if (robot && robot.ready) {
        var data = robot.getSensorData();
        if (Object.getOwnPropertyNames(data).length > 0) {
            _socket.emit('sensordata', robot.getSensorData());
