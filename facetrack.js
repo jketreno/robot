@@ -47,10 +47,6 @@ function detectFacesAndTrack(err, image) {
         
         faces.forEach(function (face, i) {
             /* Remap x and y properties to left and top */
-            face.left = face.x;
-            delete face.x;
-            face.top = face.y;
-            delete face.y;
             faces[i].size = face.width * face.height;
 
             if (largest == -1 || faces[i].size > faces[largest].size) {
@@ -66,6 +62,7 @@ function detectFacesAndTrack(err, image) {
         
         io.emit('frame', {
             image: image.toBuffer(),
+            size: { width: image.width(), height: image.height() },
             faces: faces
         });
         
@@ -111,8 +108,8 @@ function updatePlan(update) {
         /* calculate how far 'face' is from center of image and determeine 
          * optimal motor speeds to move robot in direction to center face */
         var face = update.face;
-        var deltaAngle = FOV_x * ((face.left + face.width / 2) / (320 / 2) - 1),
-            framePos = (face.top + face.height / 2) / ((240 - face.height) / 2) - 1,
+        var deltaAngle = FOV_x * ((face.x + face.width / 2) / (320 / 2) - 1),
+            framePos = (face.y + face.height / 2) / ((240 - face.height) / 2) - 1,
             rotateSpeed = Math.pow(deltaAngle / FOV_x, 2);
         var left = 0, right = 0;
         
@@ -153,8 +150,6 @@ try {
         console.log('READY');
         robot.ready = true;
         lastCommand = Date.now();
-        // Once the robot is ready, start face detection tracking
-        cam.read(detectFacesAndTrack);
      });
     
     robot.on('sensordata', function() {
@@ -167,7 +162,6 @@ try {
 } catch (err) {
     console.log('No robot found at /dev/ttyUSB0. Continuing without robot.');
     robot = null;
-    cam.read(detectFacesAndTrack);
 }
 
 io.on('connection', function(_socket) {
@@ -192,3 +186,5 @@ io.on('connection', function(_socket) {
        }
     }
 });
+
+cam.read(detectFacesAndTrack);
