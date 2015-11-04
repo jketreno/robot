@@ -36,18 +36,39 @@ var FOV = 68.5, /* Microsoft HD LiveCam is 68.5deg diagonal FOV */
 
 var moving = { left: 0, right: 0 },
     lastCommand = 0,
-    noFace = 0;
+    noFace = 0,
+    currentFPS = 0;
+
+var updateFPS = (function() {
+    var fpsRA = [0, 0, 0, 0, 0],
+        fpsTotal = 0,
+        fpsIndex = 0,
+        fpsLast = Date.now();
+
+    return function() {
+        var now = Date.now();
+        fpsTotal -= fpsRA[fpsIndex];
+        fpsRA[fpsIndex] = (now - fpsLast) / fpsRA.length;
+        fpsTotal += fpsRA[fpsIndex++];
+        fpsIndex %= fpsRA.length;
+        fpsLast = now;
+        return 1000 / fpsTotal;
+    }
+})();
 
 /* Increase this to make the robot move faster */
 var speedMultiplier = 5;
 
 function detectFacesAndTrack(err, image) {
     var faces = [];
+
     image.detectObject(cv.FACE_CASCADE, {}, function (err, faces) {
         if (err) {
             throw err;
         }
         var largest = -1;
+
+        currentFPS = updateFPS();
         
         faces.forEach(function (face, i) {
             /* Remap x and y properties to left and top */
@@ -117,6 +138,26 @@ function updatePlan(update) {
             rotateSpeed = Math.pow(deltaAngle / FOV_x, 2);
         var left = 0, right = 0;
         
+        /* Calculate the distance each wheel should travel in order to rotate the Roomba
+         * half the angle over the course of the next second. Set a timer so that after
+         * a second, if there haven't been any update targets, the current speed is stopped --
+         * that should occur in the Action phase.
+         *
+         * 9.25" from wheel center to wheel center on the Roomba gives a 4.625" radius, 
+         * which is 117.475mm */
+        var radius = 117.475,
+            circumference = 2 * Math.PI * radius,
+            distance = circumference * deltaAngle / 360;
+        
+        /* TODO: Scale speed for 1s and then set a timer to stop the speed if it hasn't
+         * been reset */
+        console.log('Tire speed (' + (Math.round(deltaAngle * 10) / 10) + 'deg): ' + 
+                    Math.round(distance * 5) / 10);
+        
+        left = distance * 0.5;
+        right = -left;
+        
+        /*
         if (deltaAngle < 0) {
             console.log('Rotate left ' + Math.round(deltaAngle * 10) / 10 + 'deg');
             left = 100 * rotateSpeed;
@@ -126,7 +167,10 @@ function updatePlan(update) {
             left = -100 * rotateSpeed;
             right = 100 * rotateSpeed;
         }
+        */
 
+        /* Move forward or backward if necessary to center the face in the frame
+         * vertically */
         if (Math.abs(framePos) < 1 && Math.abs(framePos) > 0.15) {
             var direction = framePos < 0 ? -1 : +1;
             left += direction * 40;
