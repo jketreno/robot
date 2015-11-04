@@ -13,9 +13,13 @@ var cv = require('opencv'),
     ir = require('irobot'),
     fs = require('fs'),
     mraa = require('mraa');
+
+var width = 320,
+    height = 240;
+
 var cam = new cv.VideoCapture(0);
-cam.setWidth(320);
-cam.setHeight(240);
+cam.setWidth(width);
+cam.setHeight(height);
 
 var led = null;
 try {
@@ -28,7 +32,7 @@ try {
 var sockets = [];
 
 var FOV = 68.5, /* Microsoft HD LiveCam is 68.5deg diagonal FOV */
-    FOV_x = FOV * Math.cos (Math.atan2(240, 320)) * 0.5; /* FOV along width */
+    FOV_x = FOV * Math.cos (Math.atan2(height, width)) * 0.5; /* FOV along width */
 
 var moving = { left: 0, right: 0 },
     lastCommand = 0,
@@ -108,8 +112,8 @@ function updatePlan(update) {
         /* calculate how far 'face' is from center of image and determeine 
          * optimal motor speeds to move robot in direction to center face */
         var face = update.face;
-        var deltaAngle = FOV_x * ((face.x + face.width / 2) / (320 / 2) - 1),
-            framePos = (face.y + face.height / 2) / ((240 - face.height) / 2) - 1,
+        var deltaAngle = FOV_x * ((face.x + face.width / 2) / (width / 2) - 1),
+            framePos = (face.y + face.height / 2) / ((height - face.height) / 2) - 1,
             rotateSpeed = Math.pow(deltaAngle / FOV_x, 2);
         var left = 0, right = 0;
         
