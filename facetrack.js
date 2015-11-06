@@ -60,8 +60,6 @@ var updateFPS = (function() {
 var speedMultiplier = 5;
 
 function detectFacesAndTrack(err, image) {
-    var faces = [];
-
     image.detectObject(cv.FACE_CASCADE, {}, function (err, faces) {
         if (err) {
             throw err;
@@ -71,7 +69,6 @@ function detectFacesAndTrack(err, image) {
         currentFPS = updateFPS();
         
         faces.forEach(function (face, i) {
-            /* Remap x and y properties to left and top */
             faces[i].size = face.width * face.height;
 
             if (largest == -1 || faces[i].size > faces[largest].size) {
@@ -86,7 +83,7 @@ function detectFacesAndTrack(err, image) {
         }
         
         io.emit('frame', {
-            image: image.toBuffer(),
+            image: image.toBuffer({ext:'.png'}),
             size: { width: image.width(), height: image.height() },
             faces: faces
         });
@@ -101,24 +98,41 @@ function requestLED(state) {
     }
 }
 
-function requestSpeed(left, right) {
-    if (!robot || !robot.ready) {
-        return;
-    }
+var requestSpeed = (function() {
+    var timer = 0;
     
-   /* Validate requested speeds make sense given current sensor wall and
-    * cliff values, adjust accordingly */
+    return function(left, right, duration) {
+        if (!robot || !robot.ready) {
+            return;
+        }
 
-   /* Send the new speed values to the robot */
-   robot.drive({left: Math.round(left), right: Math.round(right)});
-}
+        if (timer) {
+            clearTimeout(timer);
+        }
+
+        if (duration) {
+            timer = setTimeout(function() {
+                console.log('Drive timeout; stopping motors.');
+                robot.drive({left: 0, right: 0});
+            }, duration);
+        } else {
+            timer = 0;
+        }
+        
+        /* Validate requested speeds make sense given current sensor wall and
+        * cliff values, adjust accordingly */
+
+        /* Send the new speed values to the robot */
+        robot.drive({left: Math.round(left), right: Math.round(right)});
+    }
+})();
 
 function updatePlan(update) {
     if ('face' in update) { /* face update */
         var now = Date.now();
         if (!update.face) {
             if (++noFace == 5) {
-                console.log('Faces for ' + noFace + ' frames. Stopping robot.');
+                console.log('No faces for ' + noFace + ' frames. Stopping robot.');
                 requestSpeed(0, 0); /* TODO: Switch into SEEK mode */
                 requestLED(0); /* Turn OFF 'face detected' LED */
             }
@@ -139,9 +153,7 @@ function updatePlan(update) {
         var left = 0, right = 0;
         
         /* Calculate the distance each wheel should travel in order to rotate the Roomba
-         * half the angle over the course of the next second. Set a timer so that after
-         * a second, if there haven't been any update targets, the current speed is stopped --
-         * that should occur in the Action phase.
+         * half the angle over the course of the next second.
          *
          * 9.25" from wheel center to wheel center on the Roomba gives a 4.625" radius, 
          * which is 117.475mm */
@@ -157,18 +169,6 @@ function updatePlan(update) {
         left = distance * 0.5;
         right = -left;
         
-        /*
-        if (deltaAngle < 0) {
-            console.log('Rotate left ' + Math.round(deltaAngle * 10) / 10 + 'deg');
-            left = 100 * rotateSpeed;
-            right = -100 * rotateSpeed;
-        } else {
-            console.log('Rotate right ' + Math.round(deltaAngle * 10) / 10 + 'deg');
-            left = -100 * rotateSpeed;
-            right = 100 * rotateSpeed;
-        }
-        */
-
         /* Move forward or backward if necessary to center the face in the frame
          * vertically */
         if (Math.abs(framePos) < 1 && Math.abs(framePos) > 0.15) {
@@ -178,9 +178,7 @@ function updatePlan(update) {
             console.log('Drive ' + (direction < 0 ? 'backward' : 'forward'));
         } 
 
-        requestSpeed(left * speedMultiplier, right * speedMultiplier);
-
-        noFace = 0;
+        requestSpeed(left * speedMultiplier, right * speedMultiplier, 1000);
     } else if ('sensors' in update) {
     }
 }
